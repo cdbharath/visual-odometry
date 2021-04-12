@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 import cv2
 
 STAGE_FIRST_FRAME = 0
@@ -21,17 +21,21 @@ def featureTracking(image_ref, image_cur, px_ref):
 
 
 class PinholeCamera:
-	"""
-	width: width of the image pixels
-	height: height of the image in pixels
-	fx, fy: focus of the image in pixels
-	cx, cy: optical center of the image in pixels
-	k1, k2, k3: distortion parameters
-	p1, p2: ?
-	"""
+	'''
+ 	Sets the parameters of the camera 
+  	'''	
 	def __init__(self, width, height, fx, fy, cx, cy, 
 				k1=0.0, k2=0.0, p1=0.0, p2=0.0, k3=0.0):
-		self.width = width
+		'''
+		width: width of the image pixels
+		height: height of the image in pixels
+		fx, fy: focus of the image in pixels
+		cx, cy: optical center of the image in pixels
+		k1, k2, k3: camera distortion parameters
+		p1, p2: ?
+
+		'''
+ 		self.width = width
 		self.height = height
 		self.fx = fx
 		self.fy = fy
@@ -42,7 +46,22 @@ class PinholeCamera:
 
 
 class VisualOdometry:
+	''' 
+	Calculates odometry from monocular images
+  	'''
 	def __init__(self, cam, annotations):
+		'''
+  		cam: Instance of PinholeCamera
+		new_frame: current frame from the feed
+		last_frame: previous frame from the feed
+		R: Rotation matrices?
+		t: Translation matrices?
+		px_ref: ?
+		px_cur: ?
+		focal: focal length of the camera
+		pp: optical center of the camera
+		trueX, trueY, trueX: ground truth
+    	'''
 		self.frame_stage = 0
 		self.cam = cam
 		self.new_frame = None
@@ -59,6 +78,9 @@ class VisualOdometry:
 			self.annotations = f.readlines()
 
 	def getAbsoluteScale(self, frame_id):  #specialized for KITTI odometry dataset
+		'''
+  		Returns scale from ground truth
+    	'''
 		ss = self.annotations[frame_id-1].strip().split()
 		x_prev = float(ss[3])
 		y_prev = float(ss[7])
@@ -71,11 +93,21 @@ class VisualOdometry:
 		return np.sqrt((x - x_prev)*(x - x_prev) + (y - y_prev)*(y - y_prev) + (z - z_prev)*(z - z_prev))
 
 	def processFirstFrame(self):
+		'''
+  		1. Detects FAST features with threshold as 25 and nonmaxSupression and assigns it to px_ref
+    	2. Flag set to second frame
+     	'''
 		self.px_ref = self.detector.detect(self.new_frame)
 		self.px_ref = np.array([x.pt for x in self.px_ref], dtype=np.float32)
 		self.frame_stage = STAGE_SECOND_FRAME
 
 	def processSecondFrame(self):
+		'''
+  		1. Tracks the FAST features using current frame and last frame
+    	2. Essential matrix is found with RANSAC
+		3. Pose is recovered 
+     	4. Flag set to third frame
+    	'''
 		self.px_ref, self.px_cur = featureTracking(self.last_frame, self.new_frame, self.px_ref)
 		E, mask = cv2.findEssentialMat(self.px_cur, self.px_ref, focal=self.focal, pp=self.pp, method=cv2.RANSAC, prob=0.999, threshold=1.0)
 		_, self.cur_R, self.cur_t, mask = cv2.recoverPose(E, self.px_cur, self.px_ref, focal=self.focal, pp = self.pp)
@@ -83,6 +115,12 @@ class VisualOdometry:
 		self.px_ref = self.px_cur
 
 	def processFrame(self, frame_id):
+		'''
+  		1. Tracks the FAST features using current frame and last frame
+    	2. Essential matrix is found with RANSAC
+		3. Pose is recovered 
+     	4. Gets absolute scale
+    	'''
 		self.px_ref, self.px_cur = featureTracking(self.last_frame, self.new_frame, self.px_ref)
 		E, mask = cv2.findEssentialMat(self.px_cur, self.px_ref, focal=self.focal, pp=self.pp, method=cv2.RANSAC, prob=0.999, threshold=1.0)
 		_, R, t, mask = cv2.recoverPose(E, self.px_cur, self.px_ref, focal=self.focal, pp = self.pp)
@@ -96,6 +134,9 @@ class VisualOdometry:
 		self.px_ref = self.px_cur
 
 	def update(self, img, frame_id):
+		'''
+		Updates new frames
+  		'''
 		assert(img.ndim==2 and img.shape[0]==self.cam.height and img.shape[1]==self.cam.width), "Frame: provided image has not the same size as the camera model or image is not grayscale"
 		self.new_frame = img
 		if(self.frame_stage == STAGE_DEFAULT_FRAME):

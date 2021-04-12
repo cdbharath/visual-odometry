@@ -1,4 +1,4 @@
-import numpy as np 
+import numpy as np
 import cv2
 
 from visual_odometry import PinholeCamera, VisualOdometry
@@ -8,12 +8,12 @@ vo = VisualOdometry(cam, '/home/xxx/datasets/KITTI_odometry_poses/00.txt')
 
 traj = np.zeros((600,600,3), dtype=np.uint8)
 
-for img_id in xrange(4541):
+for img_id in range(4541):
 	img = cv2.imread('/home/xxx/datasets/KITTI_odometry_gray/00/image_0/'+str(img_id).zfill(6)+'.png', 0)
-
+	
 	vo.update(img, img_id)
-
-	cur_t = vo.cur_t
+	
+ 	cur_t = vo.cur_t
 	if(img_id > 2):
 		x, y, z = cur_t[0], cur_t[1], cur_t[2]
 	else:
