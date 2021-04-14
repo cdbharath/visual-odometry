@@ -35,7 +35,7 @@ class PinholeCamera:
 		p1, p2: ?
 
 		'''
- 		self.width = width
+		self.width = width
 		self.height = height
 		self.fx = fx
 		self.fy = fy
